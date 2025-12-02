@@ -296,7 +296,7 @@ func dialWebSocketWithECH(maxRetries int) (*websocket.Conn, error) {
 				if err != nil {
 					return nil, err
 				}
-				// 添加的改进代码（完整 IPv6 支持）
+				// IPv6 支持
 				ipHost := serverIP
 				userHost, userPort, splitErr := net.SplitHostPort(serverIP)
 				if splitErr == nil {
