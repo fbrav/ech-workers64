@@ -12,8 +12,7 @@ jobs:
     # 条件执行：标签发布时总是运行，普通推送时只在文件变化时运行
     if: |
       github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') ||
-      github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.modified, 'ech-workers.go')
+      github.event_name == 'workflow_dispatch'
     
     steps:
     - name: Checkout code
@@ -39,8 +38,7 @@ jobs:
     # 条件执行：标签发布时总是运行，普通推送时只在文件变化时运行
     if: |
       github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') ||
-      github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.modified, 'ech-workers.go')
+      github.event_name == 'workflow_dispatch'
     
     steps:
     - name: Checkout code
@@ -68,8 +66,7 @@ jobs:
     # 条件执行：标签发布时总是运行，普通推送时只在文件变化时运行
     if: |
       github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') ||
-      github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.modified, 'ech-workers.go')
+      github.event_name == 'workflow_dispatch'
     
     steps:
     - name: Checkout code
