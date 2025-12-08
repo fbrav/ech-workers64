@@ -59,17 +59,16 @@ async function handleSession(webSocket) {
         }
     };
     const parseAddress = (addr) => {
-        if (addr[0] === '[') {
-            const end = addr.indexOf(']');
-            return {
-                host: addr.substring(1, end),
-                port: parseInt(addr.substring(end + 2), 10)
-            };
+        let host, ipv6, port;
+        if (addr.startsWith('[') && addr.includes(']')) {
+            [ipv6, port = 443] = addr.split(']:');
+            host = ipv6.endsWith(']') ? `${ipv6}` : `${ipv6}]`;
+        } else {
+            [host, port = 443] = addr.split(/[:,;]/);
         }
-        const sep = addr.lastIndexOf(':');
         return {
-            host: addr.substring(0, sep),
-            port: parseInt(addr.substring(sep + 1), 10)
+            host: host,
+            port: +port
         };
     };
     const isCFError = (err) => {
