@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -32,30 +33,34 @@ func NewECHManager(echDomain, dnsServer string) *ECHManager {
 }
 
 func (m *ECHManager) Prepare() error {
-	echBase64, err := m.queryHTTPSRecord(m.echDomain, m.dnsServer)
-	if err != nil {
-		return fmt.Errorf("DNS查询失败: %w", err)
+	for {
+		echBase64, err := m.queryHTTPSRecord(m.echDomain, m.dnsServer)
+		if err != nil {
+			log.Printf("[客户端] DNS 查询失败: %v，2秒后重试...", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		if echBase64 == "" {
+			log.Printf("[客户端] 未找到 ECH 参数，2秒后重试...")
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		raw, err := base64.StdEncoding.DecodeString(echBase64)
+		if err != nil {
+			log.Printf("[客户端] ECH Base64 解码失败: %v，2秒后重试...", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		m.echListMu.Lock()
+		m.echList = raw
+		m.echListMu.Unlock()
+		return nil
 	}
-	if echBase64 == "" {
-		return errors.New("未找到ECH参数")
-	}
-
-	raw, err := base64.StdEncoding.DecodeString(echBase64)
-	if err != nil {
-		return fmt.Errorf("ECH解码失败: %w", err)
-	}
-
-	m.echListMu.Lock()
-	m.echList = raw
-	m.echListMu.Unlock()
-
-	return nil
 }
 
 func (m *ECHManager) GetECHList() ([]byte, error) {
 	m.echListMu.RLock()
 	defer m.echListMu.RUnlock()
-
 	if len(m.echList) == 0 {
 		return nil, errors.New("ECH配置未加载")
 	}
@@ -71,12 +76,10 @@ func (m *ECHManager) BuildTLSConfig(serverName string) (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	roots, err := x509.SystemCertPool()
 	if err != nil {
 		return nil, fmt.Errorf("加载系统根证书失败: %w", err)
 	}
-
 	return &tls.Config{
 		MinVersion:                     tls.VersionTLS13,
 		ServerName:                     serverName,
@@ -138,12 +141,10 @@ func (m *ECHManager) queryDoH(domain, dohURL string) (string, error) {
 func (m *ECHManager) buildDNSQuery(domain string, qtype uint16) []byte {
 	query := make([]byte, 0, 512)
 	query = append(query, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
-
 	for _, label := range strings.Split(domain, ".") {
 		query = append(query, byte(len(label)))
 		query = append(query, []byte(label)...)
 	}
-
 	query = append(query, 0x00, byte(qtype>>8), byte(qtype), 0x00, 0x01)
 	return query
 }
@@ -157,7 +158,6 @@ func (m *ECHManager) parseDNSResponse(response []byte) (string, error) {
 	if ancount == 0 {
 		return "", errors.New("无应答记录")
 	}
-
 	offset := 12
 	for offset < len(response) && response[offset] != 0 {
 		offset += int(response[offset]) + 1
